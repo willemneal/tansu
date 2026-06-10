@@ -1,6 +1,6 @@
 import { useStore } from "@nanostores/react";
 import Markdown from "markdown-to-jsx";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { getCommitHistory } from "../../../service/RepositoryMetadataService.ts";
 import {
   loadConfigData,

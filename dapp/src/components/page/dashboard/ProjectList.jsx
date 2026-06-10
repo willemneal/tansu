@@ -1,5 +1,5 @@
 import { useStore } from "@nanostores/react";
-import { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { getFeaturedProjectsConfigData } from "../../../constants/featuredProjectsConfigData.js";
 import { fetchTomlFromIpfs } from "../../../utils/ipfsFunctions";
 import {
