@@ -132,6 +132,14 @@ export type ProjectKey =
   | {
       tag: "ConflictOfInterest";
       values: readonly [Buffer, u32];
+    }
+  | {
+      tag: "MinVotingPeriod";
+      values: readonly [Buffer];
+    }
+  | {
+      tag: "ExecuteDelay";
+      values: readonly [Buffer];
     };
 export interface PublicVote {
   address: string;
@@ -152,10 +160,6 @@ export type VoteChoice =
       values: void;
     };
 export type ContractKey =
-  | {
-      tag: "Domain";
-      values: void;
-    }
   | {
       tag: "Collateral";
       values: void;
@@ -239,9 +243,6 @@ export declare const ContractErrors: {
   101: {
     message: string;
   };
-  102: {
-    message: string;
-  };
   103: {
     message: string;
   };
@@ -279,6 +280,9 @@ export declare const ContractErrors: {
     message: string;
   };
   211: {
+    message: string;
+  };
+  212: {
     message: string;
   };
   300: {
@@ -933,25 +937,6 @@ export interface Client {
     options?: MethodOptions,
   ) => Promise<AssembledTransaction<null>>;
   /**
-   * Construct and simulate a set_domain_contract transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
-   * Set the Soroban Domain contract.
-   *
-   * # Arguments
-   * * `env` - The environment object
-   * * `admin` - The admin address
-   * * `domain_contract` - The new domain contract
-   */
-  set_domain_contract: (
-    {
-      admin,
-      domain_contract,
-    }: {
-      admin: string;
-      domain_contract: ContractRef;
-    },
-    options?: MethodOptions,
-  ) => Promise<AssembledTransaction<null>>;
-  /**
    * Construct and simulate a get_upgrade_proposal transaction. Returns an `AssembledTransaction` object which will have a `result` field containing the result of the simulation. If this transaction changes contract state, you will need to call `signAndSend()` on the returned object.
    * Get upgrade proposal details
    */
@@ -1171,16 +1156,13 @@ export interface Client {
    * * `maintainers` - List of maintainer addresses for the project
    * * `url` - The project's Git repository URL
    * * `ipfs` - CID of the tansu.toml file with associated metadata
-   *
-   * # Returns
-   * * `Bytes` - The project key (keccak256 hash of the name)
-   *
-   * # Panics
-   * * If the project name is longer than 15 characters
-   * * If the project already exists
-   * * If the maintainer is not authorized
-   * * If the domain registration fails
-   * * If the maintainer doesn't own an existing domain
+   * * `min_voting_period` - Optional per-project minimum voting period in seconds.
+   * When `None`, the global default is used. When `Some(v)`, `v` must be > 0 and
+   * <= `MAX_VOTING_PERIOD`.
+   * * `execute_delay` - Optional per-project DAO execute timelock in seconds. When
+   * `None`, the global `TIMELOCK_DELAY` is used. When `Some(v)`, `v` must be > 0
+   * and <= `MAX_VOTING_PERIOD`. Only affects DAO proposal `execute()`; the admin
+   * upgrade timelock in `propose_upgr
    */
   register: (
     {
@@ -1189,12 +1171,16 @@ export interface Client {
       maintainers,
       url,
       ipfs,
+      min_voting_period,
+      execute_delay,
     }: {
       maintainer: string;
       name: string;
       maintainers: Array<string>;
       url: string;
       ipfs: string;
+      min_voting_period: Option<u64>;
+      execute_delay: Option<u64>;
     },
     options?: MethodOptions,
   ) => Promise<AssembledTransaction<Buffer>>;
@@ -1386,7 +1372,7 @@ export declare class Client extends ContractClient {
     remove_conflict_of_interest: (json: string) => AssembledTransaction<null>;
     build_commitments_from_votes: (
       json: string,
-    ) => AssembledTransaction<Buffer[]>;
+    ) => AssembledTransaction<Buffer<ArrayBufferLike>[]>;
     pause: (json: string) => AssembledTransaction<null>;
     version: (json: string) => AssembledTransaction<number>;
     approve_upgrade: (json: string) => AssembledTransaction<null>;
@@ -1395,7 +1381,6 @@ export declare class Client extends ContractClient {
     set_nqg_contract: (json: string) => AssembledTransaction<null>;
     get_admins_config: (json: string) => AssembledTransaction<AdminsConfig>;
     require_not_paused: (json: string) => AssembledTransaction<null>;
-    set_domain_contract: (json: string) => AssembledTransaction<null>;
     get_upgrade_proposal: (
       json: string,
     ) => AssembledTransaction<UpgradeProposal>;
@@ -1407,12 +1392,14 @@ export declare class Client extends ContractClient {
     update_member: (json: string) => AssembledTransaction<null>;
     get_max_weight: (json: string) => AssembledTransaction<number>;
     commit: (json: string) => AssembledTransaction<null>;
-    register: (json: string) => AssembledTransaction<Buffer>;
+    register: (json: string) => AssembledTransaction<Buffer<ArrayBufferLike>>;
     get_commit: (json: string) => AssembledTransaction<string>;
     get_project: (json: string) => AssembledTransaction<Project>;
     get_projects: (json: string) => AssembledTransaction<Project[]>;
     update_config: (json: string) => AssembledTransaction<null>;
-    get_sub_projects: (json: string) => AssembledTransaction<Buffer[]>;
+    get_sub_projects: (
+      json: string,
+    ) => AssembledTransaction<Buffer<ArrayBufferLike>[]>;
     set_sub_projects: (json: string) => AssembledTransaction<null>;
   };
 }

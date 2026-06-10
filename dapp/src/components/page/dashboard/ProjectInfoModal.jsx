@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { loadProjectName } from "@service/StateService";
 import { navigate } from "astro:transitions/client";
 import Button from "components/utils/Button";

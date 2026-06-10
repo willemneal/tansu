@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 use soroban_sdk::{Address, Bytes, Env, String, Vec, contractimpl, panic_with_error, token};
 
 use crate::{Tansu, TansuArgs, TansuClient, TansuTrait, VersioningTrait, errors, events, types};
@@ -20,6 +22,13 @@ impl VersioningTrait for Tansu {
     /// * `maintainers` - List of maintainer addresses for the project
     /// * `url` - The project's Git repository URL
     /// * `ipfs` - CID of the tansu.toml file with associated metadata
+    /// * `min_voting_period` - Optional per-project minimum voting period in seconds.
+    ///   When `None`, the global default is used. When `Some(v)`, `v` must be > 0 and
+    ///   <= `MAX_VOTING_PERIOD`.
+    /// * `execute_delay` - Optional per-project DAO execute timelock in seconds. When
+    ///   `None`, the global `TIMELOCK_DELAY` is used. When `Some(v)`, `v` must be > 0
+    ///   and <= `MAX_VOTING_PERIOD`. Only affects DAO proposal `execute()`; the admin
+    ///   upgrade timelock in `propose_upgrade` is unaffected.
     ///
     /// # Returns
     /// * `Bytes` - The project key (keccak256 hash of the name)
@@ -29,6 +38,7 @@ impl VersioningTrait for Tansu {
     /// * If the project already exists
     /// * If the maintainer is not authorized
     /// * If the maintainer has insufficient collateral balance
+    /// * If `min_voting_period` or `execute_delay` is `Some(0)` or exceeds `MAX_VOTING_PERIOD`
     fn register(
         env: Env,
         maintainer: Address,
@@ -36,8 +46,16 @@ impl VersioningTrait for Tansu {
         maintainers: Vec<Address>,
         url: String,
         ipfs: String,
+        min_voting_period: Option<u64>,
+        execute_delay: Option<u64>,
     ) -> Bytes {
         Tansu::require_not_paused(env.clone());
+
+        for v in [min_voting_period, execute_delay].iter().flatten() {
+            if *v == 0 || *v > crate::contract_dao::MAX_VOTING_PERIOD {
+                panic_with_error!(&env, &errors::ContractErrors::InvalidVotingPeriod);
+            }
+        }
 
         let project = types::Project {
             name: name.clone(),
@@ -109,6 +127,18 @@ impl VersioningTrait for Tansu {
             env.storage()
                 .persistent()
                 .set(&types::ProjectKey::TotalProjects, &(total_projects + 1));
+
+            if let Some(v) = min_voting_period {
+                env.storage()
+                    .persistent()
+                    .set(&types::ProjectKey::MinVotingPeriod(key.clone()), &v);
+            }
+
+            if let Some(v) = execute_delay {
+                env.storage()
+                    .persistent()
+                    .set(&types::ProjectKey::ExecuteDelay(key.clone()), &v);
+            }
 
             events::ProjectRegistered {
                 project_key: key.clone(),

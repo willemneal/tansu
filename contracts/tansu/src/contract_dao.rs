@@ -14,8 +14,8 @@ const VOTE_COLLATERAL: i128 = 2 * 10_000_000;
 const MAX_TITLE_LENGTH: u32 = 256;
 const MAX_PROPOSALS_PER_PAGE: u32 = 9;
 const MAX_PAGES: u32 = 1000;
-const MIN_VOTING_PERIOD: u64 = 24 * 3600; // 1 day in seconds
-const MAX_VOTING_PERIOD: u64 = 30 * 24 * 3600; // 30 days in seconds
+pub(crate) const MIN_VOTING_PERIOD: u64 = 24 * 3600; // 1 day in seconds
+pub(crate) const MAX_VOTING_PERIOD: u64 = 30 * 24 * 3600; // 30 days in seconds
 const MAX_VOTES_PER_PROPOSAL: u32 = 40; // DoS protection
 
 #[contractimpl]
@@ -184,7 +184,12 @@ impl DaoTrait for Tansu {
 
         // Some input validations
         let curr_timestamp = env.ledger().timestamp();
-        let min_voting_timestamp = curr_timestamp + MIN_VOTING_PERIOD;
+        let min_voting_period = env
+            .storage()
+            .persistent()
+            .get(&types::ProjectKey::MinVotingPeriod(project_key.clone()))
+            .unwrap_or(MIN_VOTING_PERIOD);
+        let min_voting_timestamp = curr_timestamp + min_voting_period;
         let max_voting_timestamp = curr_timestamp + MAX_VOTING_PERIOD;
         let ipfs_len = ipfs.len();
         let title_len = title.len();
@@ -751,7 +756,12 @@ impl DaoTrait for Tansu {
         if proposal.status != types::ProposalStatus::Active {
             panic_with_error!(&env, &errors::ContractErrors::ProposalActive);
         }
-        if curr_timestamp < proposal.vote_data.voting_ends_at + types::TIMELOCK_DELAY {
+        let execute_delay = env
+            .storage()
+            .persistent()
+            .get(&types::ProjectKey::ExecuteDelay(project_key.clone()))
+            .unwrap_or(types::TIMELOCK_DELAY);
+        if curr_timestamp < proposal.vote_data.voting_ends_at + execute_delay {
             panic_with_error!(&env, &errors::ContractErrors::ProposalVotingTime);
         }
 
